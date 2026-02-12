@@ -74,6 +74,15 @@ def git_checkout(dest_repo: Path, commit: str) -> None:
             "git checkout failed.\n"
             f"STDOUT:\n{cp.stdout}\n\nSTDERR:\n{cp.stderr}"
         )
+    
+def git_clone(repo_url: str, dest_repo: Path) -> None:
+    cp = run(["git", "clone", "--no-checkout", repo_url, str(dest_repo)], cwd=dest_repo.parent)
+    if cp.returncode != 0:
+        raise RuntimeError(
+            "git clone failed.\n"
+            f"URL: {repo_url}\n\nSTDOUT:\n{cp.stdout}\n\nSTDERR:\n{cp.stderr}"
+        )
+
 
 def apply_patch(dest_repo: Path, patch_path: Path) -> None:
     if not patch_path.exists():
@@ -134,36 +143,65 @@ def score_from_report(report: Dict[str, Any]) -> Tuple[float, int, int]:
 
 
 def main() -> None:
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task-dir", required=True, help="Path to the task directory containing metadata.json")
-    parser.add_argument("--harness-root", required=True, help="Root folder containing tasks/ (used to resolve hidden tests relpath)")
+
+    # New interface
+    parser.add_argument("--task", default=None, help="Task id (folder name under tasks/), e.g. fastapi_ref_schema_regression")
+
+    # Backward-compatible interface
+    parser.add_argument("--task-dir", default=None, help="Path to the task directory containing metadata.json")
+    parser.add_argument("--harness-root", default=".", help="Root folder containing tasks/ (default: .)")
+
     parser.add_argument("--run-visible", action="store_true", help="Also run the visible test command from metadata (not used for scoring)")
     parser.add_argument("--patch", default=None, help="Path to a unified diff patch to apply in the sandbox before running tests")
     parser.add_argument("--metadata", default="metadata.json", help="Metadata filename in task-dir (default: metadata.json)")
     args = parser.parse_args()
 
-    ensure_git_available()
-
-    task_dir = Path(args.task_dir).resolve()
     harness_root = Path(args.harness_root).resolve()
 
+    # Infer task_dir from --task if provided
+    if args.task:
+        inferred = harness_root / "tasks" / args.task
+        args.task_dir = str(inferred)
+
+    if not args.task_dir:
+        parser.error("You must provide either --task <task_id> OR --task-dir <path>")
+
+    task_dir = Path(args.task_dir).resolve()
+
+    ensure_git_available()
+
     meta = load_metadata(task_dir, args.metadata)
-    repo_path = Path(meta["repo_path"]).resolve()
+
     broken = meta["broken_commit"]
     timeout = int(meta.get("timeout_seconds", 600))
+
+    # Support either repo_url (Docker/reviewer mode) or repo_path (local dev mode)
+    repo_url = meta.get("repo_url")
+    repo_path_str = meta.get("repo_path")
+    repo_path = Path(repo_path_str).resolve() if repo_path_str else None
 
     hidden_rel = meta["hidden_tests_relpath"]
     hidden_tests_path = (harness_root / hidden_rel).resolve()
     if not hidden_tests_path.exists():
         raise FileNotFoundError(f"Hidden tests path not found: {hidden_tests_path}")
 
+
     # Create a fresh sandbox
     with tempfile.TemporaryDirectory(prefix="swe_sandbox_") as td:
         sandbox_repo = Path(td) / "repo"
-        copy_repo_working_tree(repo_path, sandbox_repo)
 
-        # Ensure the sandbox is at the broken commit
+        if repo_url:
+            git_clone(repo_url, sandbox_repo)
+        else:
+            if repo_path is None:
+                raise KeyError("metadata must define either 'repo_url' or 'repo_path'")
+            copy_repo_working_tree(repo_path, sandbox_repo)
+
+        # Ensure sandbox is at the broken commit
         git_checkout(sandbox_repo, broken)
+
 
         # Optional: apply agent patch
         if args.patch:
@@ -195,7 +233,7 @@ def main() -> None:
 
         result = {
             "task_id": meta.get("task_id", task_dir.name),
-            "repo": str(repo_path),
+            "repo": repo_url if repo_url else str(repo_path),
             "broken_commit": broken,
             "reward": reward,
             "score": score,
