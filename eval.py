@@ -76,12 +76,20 @@ def git_checkout(dest_repo: Path, commit: str) -> None:
         )
     
 def git_clone(repo_url: str, dest_repo: Path) -> None:
+    # Clone without checkout (fast, clean)
     cp = run(["git", "clone", "--no-checkout", repo_url, str(dest_repo)], cwd=dest_repo.parent)
     if cp.returncode != 0:
         raise RuntimeError(
             "git clone failed.\n"
             f"URL: {repo_url}\n\nSTDOUT:\n{cp.stdout}\n\nSTDERR:\n{cp.stderr}"
         )
+
+    # Ensure we have all the objects we might need
+    run(["git", "fetch", "--all", "--tags"], cwd=dest_repo)
+
+    # Also fetch PR refs (GitHub), so commits only on PR branches are available
+    run(["git", "fetch", "origin", "+refs/pull/*/head:refs/remotes/origin/pr/*"], cwd=dest_repo)
+
 
 
 def apply_patch(dest_repo: Path, patch_path: Path) -> None:
