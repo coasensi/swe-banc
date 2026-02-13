@@ -1,8 +1,8 @@
 {
   "task_id": "fastapi_ref_schema_regression",
   "repo_url": "https://github.com/fastapi/fastapi.git",
-  "base_commit": "54f8aeeb9a15e4d5a12401ec5549840966df0087",
-  "broken_commit": "4037133cfa684c7c416ddd1eef83f1b509e18971",
+  "base_commit": "5d40dfbc",
+  "broken_commit": "5d40dfbc^",
   "language": "python",
   "hidden_tests_relpath": "tasks/fastapi_ref_schema_regression/hidden_tests",
   "visible_tests_cmd": "pytest tests/test_schema_ref_pydantic_v2.py -q",
