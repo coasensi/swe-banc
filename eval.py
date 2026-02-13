@@ -74,7 +74,7 @@ def git_checkout(dest_repo: Path, commit: str) -> None:
             "git checkout failed.\n"
             f"STDOUT:\n{cp.stdout}\n\nSTDERR:\n{cp.stderr}"
         )
-    
+
 def git_clone(repo_url: str, dest_repo: Path) -> None:
     # Clone without checkout (fast, clean)
     cp = run(["git", "clone", "--no-checkout", repo_url, str(dest_repo)], cwd=dest_repo.parent)
@@ -210,6 +210,11 @@ def main() -> None:
         # Ensure sandbox is at the broken commit
         git_checkout(sandbox_repo, broken)
 
+        # Install FastAPI with its test dependencies if available
+        cp = run(
+            [sys.executable, "-m", "pip", "install", "--no-cache-dir", "-e", ".[all]"],
+            cwd=sandbox_repo,
+        )
 
         # Optional: apply agent patch
         if args.patch:
