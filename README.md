@@ -4,9 +4,9 @@ This project implements a reproducible, patch-based coding benchmark inspired by
 
 The instance is grounded in a real FastAPI regression (PR #14349: https://github.com/fastapi/fastapi/pull/14349) involving incorrect handling of JSON Schema attributes named "$ref" during OpenAPI schema generation.
 
-## What Was Built
+## what was built
 
-### 1. Task Definition
+### 1. task definition
 
 tasks/fastapi_ref_schema_regression/
 ├── prompt.md
