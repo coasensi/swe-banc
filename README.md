@@ -104,6 +104,6 @@ It supports:
 ## futures directions
 
 - penalize patch size/diff: could avoid test overfitting and agents rewriting entire files
-- - add time and agent runtime metrics
+- add time and agent runtime metrics
 - integrate llm-based coding agents
 - add a baseline agent and comparative scores
