@@ -45,3 +45,65 @@ Example output:
   "passed": 4,
   "total": 4
 }
+```
+
+### 3. patch hook (Agent interface)
+
+agents interact via standard unified diffs:
+
+```bash
+python eval.py --task fastapi_ref_schema_regression --patch solution.patch
+```
+
+the patch is applied using git apply inside a sandbox checkout > ensures determinism, replayability and agent-environment separation
+
+## how to run
+
+The environment is fully containerized to ensure reproducibility.
+
+```bash
+git clone https://github.com/coasensi/swe-banc
+cd swe-banc
+docker build -t swe-banc
+```
+
+Run evaluation on the broken commit (should return reward:0):
+```bash
+docker run --rm swe-banc
+```
+
+Run evaluation with your patch:
+
+you must mount a directory containing your patch:
+
+```bash
+docker run --rm \
+  -v $(pwd)/attempts:/patches \
+  swe-banc \
+  python eval.py \
+    --task fastapi_ref_schema_regression \
+    --patch /patches/solution.patch
+```
+
+## why this matters for RL
+
+this environment behaves like a one-step RL task:
+
+- state: broken repository snapshot
+- action: patch (unified diff)
+- transition: apply patch
+- reward: hidden test score
+
+It supports:
+
+- ranking agent attempts
+- reward-based learning
+- multi-task scaling
+- reproducible evaluation
+
+## futures directions
+
+- penalize patch size/diff: could avoid test overfitting and agents rewriting entire files
+- - add time and agent runtime metrics
+- integrate llm-based coding agents
+- add a baseline agent and comparative scores
